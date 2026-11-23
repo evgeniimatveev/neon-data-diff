@@ -4,6 +4,10 @@ A data diff for dbt models on Postgres/Neon. It compares two schemas inside one 
 
 The comparison runs entirely in SQL, so no table data leaves the database. Only counts (and optional sample rows) come back.
 
+## Live demo
+
+[uber-driver-analytics PR #12](https://github.com/evgeniimatveev/uber-driver-analytics/pull/12) switches one staging column from Los Angeles time to UTC. All 20 dbt tests pass, and the bot comment shows what moved. That PR is intentionally not merged.
+
 ## Why
 
 Passing dbt tests tell you the data is still *valid*. They do not tell you the data *changed*. A refactor can keep every test green while shifting numbers.
