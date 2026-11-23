@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="620" viewBox="0 0 1400 620" role="img" aria-label="Infrastructure: GitHub Action orchestrates a Neon branch, dbt runs, a Python SQL diff and a sticky pull-request comment">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#070b12"/>
+      <stop offset="1" stop-color="#0b1320"/>
+    </linearGradient>
+    <linearGradient id="gGh" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b4658"/><stop offset="1" stop-color="#1b2230"/></linearGradient>
+    <linearGradient id="gNeon" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#00e599"/><stop offset="1" stop-color="#009f6b"/></linearGradient>
+    <linearGradient id="gDbt" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff8a5c"/><stop offset="1" stop-color="#e0502a"/></linearGradient>
+    <linearGradient id="gPy" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd43b"/><stop offset="1" stop-color="#d9a400"/></linearGradient>
+    <linearGradient id="gPg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b8de0"/><stop offset="1" stop-color="#336791"/></linearGradient>
+    <linearGradient id="gCm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b57bff"/><stop offset="1" stop-color="#7a3df0"/></linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#7d8aa3"/>
+    </marker>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="10"/></filter>
+  </defs>
+
+  <rect width="1400" height="620" rx="22" fill="url(#bg)"/>
+  <g stroke="#ffffff" stroke-opacity="0.035">
+    <path d="M0 100H1400M0 200H1400M0 300H1400M0 400H1400M0 500H1400"/>
+    <path d="M100 0V620M200 0V620M300 0V620M400 0V620M500 0V620M600 0V620M700 0V620M800 0V620M900 0V620M1000 0V620M1100 0V620M1200 0V620M1300 0V620"/>
+  </g>
+
+  <g font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif">
+    <text x="50" y="58" font-size="15" font-weight="700" letter-spacing="3" fill="#7d8aa3">INFRASTRUCTURE  ·  ONE PULL REQUEST, END TO END</text>
+
+    <!-- Row 1: trigger and orchestrator -->
+    <rect x="50" y="90" width="300" height="120" rx="16" fill="url(#gGh)" stroke="#ffffff" stroke-opacity="0.18"/>
+    <text x="74" y="128" font-size="13" font-weight="700" letter-spacing="2" fill="#aab6cc">TRIGGER</text>
+    <text x="74" y="162" font-size="26" font-weight="700" fill="#ffffff">Pull request</text>
+    <text x="74" y="190" font-size="15" fill="#c3cde0">touches dbt/ in your repo</text>
+
+    <rect x="450" y="90" width="500" height="120" rx="16" fill="url(#gGh)" stroke="#2088ff" stroke-opacity="0.7" stroke-width="1.5"/>
+    <text x="474" y="128" font-size="13" font-weight="700" letter-spacing="2" fill="#7ab6ff">ORCHESTRATOR</text>
+    <text x="474" y="162" font-size="26" font-weight="700" fill="#ffffff">neon-data-diff Action</text>
+    <text x="474" y="190" font-size="15" fill="#c3cde0">composite GitHub Action · creates, runs, diffs, cleans up</text>
+
+    <rect x="1050" y="90" width="300" height="120" rx="16" fill="url(#gCm)" stroke="#ffffff" stroke-opacity="0.2"/>
+    <text x="1074" y="128" font-size="13" font-weight="700" letter-spacing="2" fill="#e4d4ff">OUTPUT</text>
+    <text x="1074" y="162" font-size="26" font-weight="700" fill="#ffffff">PR comment</text>
+    <text x="1074" y="190" font-size="15" fill="#efe6ff">one sticky comment, updated in place</text>
+
+    <!-- Row 2: Neon branch container -->
+    <rect x="50" y="270" width="1300" height="260" rx="20" fill="#00e599" fill-opacity="0.06" stroke="#00e599" stroke-opacity="0.55" stroke-width="1.5" stroke-dasharray="8 6"/>
+    <rect x="50" y="270" width="300" height="42" rx="12" fill="url(#gNeon)"/>
+    <text x="70" y="297" font-size="15" font-weight="800" fill="#04271b">NEON BRANCH · copy-on-write</text>
+    <text x="1328" y="297" text-anchor="end" font-size="14" fill="#5fe3b3">created per PR, deleted at the end · production is never written to</text>
+
+    <rect x="90" y="340" width="300" height="150" rx="16" fill="url(#gDbt)"/>
+    <text x="112" y="376" font-size="13" font-weight="700" letter-spacing="2" fill="#ffe3d6">dbt run</text>
+    <text x="112" y="410" font-size="25" font-weight="700" fill="#ffffff">base code</text>
+    <text x="112" y="438" font-size="15" fill="#fff0e8">main branch → schema</text>
+    <text x="112" y="464" font-size="17" font-family="Consolas,'Courier New',monospace" font-weight="700" fill="#ffffff">base_marts</text>
+
+    <rect x="450" y="340" width="300" height="150" rx="16" fill="url(#gDbt)"/>
+    <text x="472" y="376" font-size="13" font-weight="700" letter-spacing="2" fill="#ffe3d6">dbt run</text>
+    <text x="472" y="410" font-size="25" font-weight="700" fill="#ffffff">PR code</text>
+    <text x="472" y="438" font-size="15" fill="#fff0e8">PR branch → schema</text>
+    <text x="472" y="464" font-size="17" font-family="Consolas,'Courier New',monospace" font-weight="700" fill="#ffffff">head_marts</text>
+
+    <rect x="810" y="340" width="500" height="150" rx="16" fill="url(#gPy)"/>
+    <text x="832" y="376" font-size="13" font-weight="700" letter-spacing="2" fill="#3a2d00">DIFF ENGINE · Python + psycopg 3</text>
+    <text x="832" y="410" font-size="25" font-weight="700" fill="#1a1400">SQL runs inside Postgres</text>
+    <text x="832" y="438" font-size="15" fill="#3a2d00">anti-joins · IS DISTINCT FROM · EXCEPT ALL</text>
+    <text x="832" y="464" font-size="15" fill="#3a2d00">only counts leave the database</text>
+
+    <!-- Postgres base strip -->
+    <rect x="90" y="500" width="1220" height="22" rx="11" fill="url(#gPg)"/>
+    <text x="700" y="516" text-anchor="middle" font-size="13" font-weight="700" letter-spacing="2" fill="#eaf1ff">POSTGRES 18 · one database, two schemas, joined directly</text>
+  </g>
+
+  <!-- arrows -->
+  <g stroke="#7d8aa3" stroke-width="2.5" fill="none" marker-end="url(#arrow)">
+    <path d="M350 150H446"/>
+    <path d="M950 150H1046"/>
+    <path d="M540 214V336"/>
+    <path d="M470 214C470 262 372 270 372 336"/>
+  </g>
+  <g stroke="#00e599" stroke-width="2.5" fill="none" marker-end="url(#arrow)">
+    <path d="M750 415H806"/>
+    <path d="M240 340V322H1060V336"/>
+  </g>
+  <g stroke="#b57bff" stroke-width="2.5" fill="none" marker-end="url(#arrow)">
+    <path d="M1200 336V214"/>
+  </g>
+  <g font-family="'Segoe UI',Arial,sans-serif" font-size="13" font-weight="600">
+    <text x="398" y="140" text-anchor="middle" fill="#9fb0cc">triggers</text>
+    <text x="998" y="140" text-anchor="middle" fill="#9fb0cc">posts</text>
+    <text x="1212" y="268" fill="#d6bcff">report</text>
+    <text x="640" y="316" text-anchor="middle" fill="#5fe3b3">both schemas compared</text>
+  </g>
+</svg>
