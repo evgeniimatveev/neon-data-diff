@@ -31,7 +31,39 @@ production --branch--> pr-branch
                        neon-data-diff base_marts head_marts --> PR comment
 ```
 
-## Usage
+## GitHub Action
+
+```yaml
+- uses: actions/checkout@v7
+- uses: evgeniimatveev/neon-data-diff@v0
+  with:
+    neon-api-key: ${{ secrets.NEON_API_KEY }}
+    neon-project-id: ${{ vars.NEON_PROJECT_ID }}
+```
+
+Full workflow: [`examples/neon-data-diff.yml`](examples/neon-data-diff.yml). The job needs `pull-requests: write` to post the comment.
+
+What it does on each pull request: creates a Neon branch, runs `dbt run` for the base code and for the PR code into `base_*` and `head_*` schemas, diffs them, posts one comment (updated on every push, never duplicated), and deletes the branch.
+
+**Contract with your dbt project.** The profile (taken from the PR head for both runs) must read its connection from environment variables:
+
+```yaml
+host: "{{ env_var('DBT_HOST') }}"
+user: "{{ env_var('DBT_USER') }}"
+password: "{{ env_var('DBT_PASSWORD') }}"
+dbname: "{{ env_var('DBT_DBNAME') }}"
+schema: "{{ env_var('DBT_SCHEMA') }}"
+```
+
+With a custom schema `marts`, dbt writes `base_marts` and `head_marts`, which are the schemas compared (`schema-suffix` input).
+
+Inputs: `dbt-dir` (default `dbt`), `install-command`, `database`, `role`, `schema-suffix`, `base-ref`, `max-change-pct`, `samples`, `python-version`, `github-token`.
+
+Pull requests from forks get no secrets and a read-only token, so the check cannot run there. For a personal or internal repo this does not matter.
+
+---
+
+## Usage (CLI)
 
 ```bash
 pip install git+https://github.com/evgeniimatveev/neon-data-diff   # not on PyPI
@@ -45,13 +77,15 @@ neon-data-diff \
 
 | Option | Meaning |
 |---|---|
-| `--manifest` | dbt `manifest.json`; single-column keys come from `unique` tests |
+| `--manifest` | dbt `manifest.json`; keys come from `unique` and dbt_utils `unique_combination_of_columns` tests |
 | `--key TABLE=COL[,COL]` | explicit key, repeatable (composite keys supported here) |
 | `--tolerance` | numeric tolerance, default `1e-9`, ignores float noise |
 | `--samples N` | include up to N changed rows per table. Off by default: in a public repo a PR comment would publish your data |
 | `--sums` | also report `sum()` shifts (meaningless for averages and percentages, so opt-in) |
 | `--only TABLE` | limit to some tables |
 | `--fail-on-change` | exit 1 if anything differs |
+| `--max-change-pct N` | exit 1 if added+removed+changed rows exceed N% of base rows in any table |
+| `--post-comment` | create or update the sticky PR comment (`GITHUB_TOKEN`, `GITHUB_REPOSITORY`, PR from `--pr` or `GITHUB_REF`) |
 
 ## What it compares
 
@@ -63,7 +97,7 @@ neon-data-diff \
 
 - Both schemas must be in the same database.
 - Non-deterministic models (e.g. `current_timestamp`) will always show as changed.
-- Only single-column keys are read from the manifest.
+- `dbt run` is used, not `build`: run your tests in your normal CI job.
 - Similar tools exist (Datafold data-diff, dbt-audit-helper, Recce). This one is a small, Neon-branch-native alternative with no extra infrastructure.
 
 ## Development

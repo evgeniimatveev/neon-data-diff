@@ -34,6 +34,14 @@ class TableDiff:
     notes: list[str] = field(default_factory=list)
 
     @property
+    def change_pct(self) -> float:
+        """Share of base rows touched (added + removed + changed). New/removed tables count as 100."""
+        if self.status != "compared":
+            return 100.0
+        touched = self.rows_added + self.rows_removed + (self.rows_changed or 0)
+        return 100.0 * touched / max(self.base_rows, 1)
+
+    @property
     def has_changes(self) -> bool:
         return bool(
             self.status != "compared"
@@ -44,6 +52,10 @@ class TableDiff:
             or self.rows_removed
             or self.rows_changed
         )
+
+
+def breaches(diffs: list[TableDiff], max_change_pct: float) -> list[TableDiff]:
+    return [d for d in diffs if d.change_pct > max_change_pct]
 
 
 def _relations(cur, schema: str) -> set[str]:

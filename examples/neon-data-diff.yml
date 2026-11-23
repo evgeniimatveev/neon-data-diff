@@ -1,0 +1,24 @@
+name: Data diff (PR)
+
+on:
+  pull_request:
+    paths: ["dbt/**"]
+
+permissions:
+  contents: read
+  pull-requests: write   # sticky PR comment
+
+concurrency:
+  group: data-diff-${{ github.event.number }}
+  cancel-in-progress: true
+
+jobs:
+  data-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: evgeniimatveev/neon-data-diff@v0
+        with:
+          neon-api-key: ${{ secrets.NEON_API_KEY }}
+          neon-project-id: ${{ vars.NEON_PROJECT_ID }}
+          # max-change-pct: "10"   # fail the check if >10% of a table's rows change

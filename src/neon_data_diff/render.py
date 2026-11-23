@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .diff import TableDiff
+from .diff import TableDiff, breaches
 
 MARKER = "<!-- neon-data-diff -->"
 
@@ -11,28 +11,42 @@ def _fmt(n: float | None) -> str:
     return f"{n:,.2f}".rstrip("0").rstrip(".") if isinstance(n, float) else f"{n:,}"
 
 
-def render_markdown(diffs: list[TableDiff], base: str, head: str, show_samples: bool = False) -> str:
+def render_markdown(
+    diffs: list[TableDiff],
+    base: str,
+    head: str,
+    show_samples: bool = False,
+    max_change_pct: float | None = None,
+) -> str:
     changed = [d for d in diffs if d.has_changes]
     lines = [MARKER, "## Data diff", f"`{base}` (base) vs `{head}` (head)", ""]
     if not changed:
         lines.append(f"No differences across {len(diffs)} table(s).")
         return "\n".join(lines) + "\n"
 
+    lines += [f"{len(changed)} of {len(diffs)} table(s) changed.", ""]
+    if max_change_pct is not None:
+        over = breaches(diffs, max_change_pct)
+        if over:
+            lines += [
+                f"**Threshold exceeded** (max {max_change_pct:g}% of rows): "
+                + ", ".join(f"`{d.table}` {d.change_pct:.1f}%" for d in over),
+                "",
+            ]
     lines += [
-        f"{len(changed)} of {len(diffs)} table(s) changed.",
-        "",
-        "| Table | Rows base -> head | Added | Removed | Changed |",
-        "|---|---|---|---|---|",
+        "| Table | Rows base -> head | Added | Removed | Changed | Touched |",
+        "|---|---|---|---|---|---|",
     ]
     for d in changed:
         if d.status == "added":
-            lines.append(f"| `{d.table}` | new table | {d.head_rows:,} | - | - |")
+            lines.append(f"| `{d.table}` | new table | {d.head_rows:,} | - | - | - |")
         elif d.status == "removed":
-            lines.append(f"| `{d.table}` | table removed | - | {d.base_rows:,} | - |")
+            lines.append(f"| `{d.table}` | table removed | - | {d.base_rows:,} | - | - |")
         else:
             ch = "n/a" if d.rows_changed is None else f"{d.rows_changed:,}"
             lines.append(
-                f"| `{d.table}` | {d.base_rows:,} -> {d.head_rows:,} | {d.rows_added:,} | {d.rows_removed:,} | {ch} |"
+                f"| `{d.table}` | {d.base_rows:,} -> {d.head_rows:,} | {d.rows_added:,} | "
+                f"{d.rows_removed:,} | {ch} | {d.change_pct:.1f}% |"
             )
 
     for d in changed:

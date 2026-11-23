@@ -1,0 +1,134 @@
+name: neon-data-diff
+description: >
+  On a pull request, branch your Neon database, run dbt twice into two schemas (base = target branch code,
+  head = PR code), diff the resulting models and post a sticky PR comment. The branch is deleted afterwards.
+author: Evgenii Matveev
+
+branding:
+  icon: git-pull-request
+  color: green
+
+inputs:
+  neon-api-key:
+    description: Neon API key (store as a repository secret).
+    required: true
+  neon-project-id:
+    description: Neon project ID.
+    required: true
+  dbt-dir:
+    description: Directory of the dbt project, relative to the repository root.
+    default: dbt
+  install-command:
+    description: Command run inside dbt-dir to install dbt.
+    default: pip install -r requirements.txt
+  database:
+    description: Database name on the Neon branch.
+    default: neondb
+  role:
+    description: Database role on the Neon branch.
+    default: neondb_owner
+  schema-suffix:
+    description: >
+      Suffix of the schema dbt writes the models to. With DBT_SCHEMA=base and a custom schema "marts",
+      dbt creates base_marts, so the default compares base_marts and head_marts.
+    default: marts
+  base-ref:
+    description: Branch to take the base code from.
+    default: ${{ github.base_ref }}
+  max-change-pct:
+    description: Fail if added+removed+changed rows exceed this percent of base rows in any table. Empty = never fail.
+    default: ""
+  samples:
+    description: Sample changed rows per table in the comment. Keep 0 on public repositories (it would publish data).
+    default: "0"
+  python-version:
+    description: Python version used to run dbt and the diff.
+    default: "3.12"
+  github-token:
+    description: Token used to post the PR comment (needs pull-requests write).
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Create Neon branch from the default branch
+      id: branch
+      uses: neondatabase/create-branch-action@v6
+      with:
+        project_id: ${{ inputs.neon-project-id }}
+        api_key: ${{ inputs.neon-api-key }}
+        branch_name: ndd/pr-${{ github.run_id }}-${{ github.run_attempt }}
+        role: ${{ inputs.role }}
+        database: ${{ inputs.database }}
+
+    - uses: actions/setup-python@v7
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Check out base code
+      shell: bash
+      env:
+        BASE_REF: ${{ inputs.base-ref }}
+      run: |
+        git fetch --depth=1 origin "$BASE_REF"
+        git worktree add "$RUNNER_TEMP/ndd-base" FETCH_HEAD
+
+    - name: Install dbt and neon-data-diff
+      shell: bash
+      env:
+        DBT_DIR: ${{ inputs.dbt-dir }}
+        INSTALL_COMMAND: ${{ inputs.install-command }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        pip install "$ACTION_PATH"
+        cd "$GITHUB_WORKSPACE/$DBT_DIR"
+        eval "$INSTALL_COMMAND"
+
+    - name: dbt run (base, then head) into two schemas of the Neon branch
+      shell: bash
+      env:
+        DBT_DIR: ${{ inputs.dbt-dir }}
+        DBT_HOST: ${{ steps.branch.outputs.db_host }}
+        DBT_USER: ${{ inputs.role }}
+        DBT_PASSWORD: ${{ steps.branch.outputs.password }}
+        DBT_DBNAME: ${{ inputs.database }}
+        # The profile always comes from the PR head so base and head share one connection setup.
+        DBT_PROFILES_DIR: ${{ github.workspace }}/${{ inputs.dbt-dir }}
+      run: |
+        run_dbt() {  # $1 = schema prefix, $2 = project dir
+          (
+            cd "$2"
+            if [ -f packages.yml ]; then dbt deps; fi
+            DBT_SCHEMA="$1" dbt run
+          )
+        }
+        run_dbt base "$RUNNER_TEMP/ndd-base/$DBT_DIR"
+        run_dbt head "$GITHUB_WORKSPACE/$DBT_DIR"
+
+    - name: Diff base vs head and comment on the PR
+      shell: bash
+      env:
+        DBT_DIR: ${{ inputs.dbt-dir }}
+        SUFFIX: ${{ inputs.schema-suffix }}
+        MAX_PCT: ${{ inputs.max-change-pct }}
+        SAMPLES: ${{ inputs.samples }}
+        DATABASE_URL: ${{ steps.branch.outputs.db_url }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        args=(--base-schema "base_${SUFFIX}" --head-schema "head_${SUFFIX}"
+              --manifest "$GITHUB_WORKSPACE/$DBT_DIR/target/manifest.json"
+              --markdown "$RUNNER_TEMP/diff.md" --post-comment --samples "$SAMPLES")
+        if [ -n "$MAX_PCT" ]; then args+=(--max-change-pct "$MAX_PCT"); fi
+        set +e
+        neon-data-diff "${args[@]}"
+        rc=$?
+        cat "$RUNNER_TEMP/diff.md" >> "$GITHUB_STEP_SUMMARY" 2>/dev/null
+        exit $rc
+
+    - name: Delete Neon branch
+      if: always()
+      uses: neondatabase/delete-branch-action@v3
+      with:
+        project_id: ${{ inputs.neon-project-id }}
+        api_key: ${{ inputs.neon-api-key }}
+        branch: ndd/pr-${{ github.run_id }}-${{ github.run_attempt }}
