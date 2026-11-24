@@ -6,7 +6,8 @@ requires-python = ">=3.10"
 dependencies = ["psycopg[binary]>=3.2"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+duckdb = ["duckdb>=1.1"]
+dev = ["pytest>=8", "duckdb>=1.1"]
 
 [project.scripts]
 neon-data-diff = "neon_data_diff.cli:main"
