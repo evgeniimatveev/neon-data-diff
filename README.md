@@ -33,6 +33,30 @@ This is the real pull request: the change, the commit, and the comment the Actio
 
 Every number in that comment comes from SQL running inside the database, so no table data leaves it. Only counts come back. Sample rows are opt-in, because in a public repo a comment would publish your data.
 
+## Findings so far
+
+The tool leaves its own track record here, rebuilt daily from real runs (not typed by hand).
+
+<!-- FINDINGS:START -->
+<details>
+<summary><b>📈 Findings so far</b> <em>(auto-updated from real runs · click to expand)</em></summary>
+
+#### Pull-request flow
+2 pull request(s) checked in uber-driver-analytics: **1 with data changes**, 1 clean.
+
+| Pull request | Result | What moved | Most touched table | Checked |
+|---|---|---|---|---|
+| [#13](https://github.com/evgeniimatveev/uber-driver-analytics/pull/13) Run neon-data-diff on every dbt PR | ✅ no differences | 2 table(s) identical | 0% | merged · 2026-11-24 |
+| [#12](https://github.com/evgeniimatveev/uber-driver-analytics/pull/12) Demo: UTC date + neon-data-diff PR check | ⚠️ 1 of 2 table(s) changed | `mart_monthly_trips` 27 → 26 (+0 −1 ~13) | 51.9% | closed · 2026-11-23 |
+
+#### Daily flow (drift watch)
+No daily run with the drift check yet. The first one is the next scheduled run of `job-market-pulse`; this table fills in on its own.
+
+<sub>Built by <code>scripts/build_findings.py</code> from public GitHub data (the bot's sticky comments and the daily workflow's runs). Nothing here is typed by hand.</sub>
+
+</details>
+<!-- FINDINGS:END -->
+
 ## How it works
 
 ```mermaid
@@ -121,7 +145,7 @@ PR comment updated
 |---|---|---|
 | Database | Neon (Postgres 18) | copy-on-write branch per PR, deleted afterwards |
 | Transform | dbt-core 1.12 + dbt-postgres | builds the models twice, base and head |
-| Diff engine | Python + psycopg 3 | generates the comparison SQL, runs it in the database |
+| Diff engine | Python + psycopg 3 / DuckDB | generates the comparison SQL, runs it in the database (Postgres schemas or two DuckDB files) |
 | Delivery | GitHub composite Action | create branch, run dbt, diff, comment, cleanup |
 | Comment | GitHub REST API | one comment found by a hidden marker, updated in place |
 
@@ -129,9 +153,10 @@ PR comment updated
 
 | Workflow | Trigger | What it runs | Status |
 |---|---|---|---|
-| [CI](.github/workflows/ci.yml) | push to `main`, every PR | pytest on Python 3.10 / 3.12 / 3.13 x Postgres 16 / 17 (6 jobs), plus a check that `action.yml` parses | [![CI](https://github.com/evgeniimatveev/neon-data-diff/actions/workflows/ci.yml/badge.svg)](https://github.com/evgeniimatveev/neon-data-diff/actions/workflows/ci.yml) |
+| [CI](.github/workflows/ci.yml) | push to `main`, every PR | pytest on Python 3.10 / 3.12 / 3.13 x Postgres 16 / 17 (6 jobs, DuckDB tests included), plus a check that `action.yml` parses | [![CI](https://github.com/evgeniimatveev/neon-data-diff/actions/workflows/ci.yml/badge.svg)](https://github.com/evgeniimatveev/neon-data-diff/actions/workflows/ci.yml) |
+| [Findings](.github/workflows/findings.yml) | daily + manual | rebuilds the "Findings so far" block above from public GitHub data, commits only when it changed | [![Findings](https://github.com/evgeniimatveev/neon-data-diff/actions/workflows/findings.yml/badge.svg)](https://github.com/evgeniimatveev/neon-data-diff/actions/workflows/findings.yml) |
 
-25 tests: the diff engine against a real Postgres (added / removed / changed rows, tolerance, NULLs, schema changes, unkeyed fallback, composite keys), the CLI (exit codes, thresholds, missing config), the renderer, the manifest key reader, and the sticky-comment logic against a fake GitHub API.
+44 tests: the diff engine against a real Postgres (added / removed / changed rows, tolerance, NULLs, schema changes, unkeyed fallback, composite keys), the same engine on two DuckDB files (growth vs rewritten history), the CLI (exit codes, thresholds, missing config), the renderer, the manifest key reader, the sticky-comment logic against a fake GitHub API, and the findings-block builder.
 
 ## Quick start (GitHub Action)
 
