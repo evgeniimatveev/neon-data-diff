@@ -19,19 +19,11 @@
 
 ## The problem
 
-A passing test suite proves the data is still *valid*. It does not prove the data is still *the same*. A refactor can keep every test green and quietly move your numbers.
+A passing test suite proves the data is still *valid*. It does not prove it is still *the same*. A refactor can keep every test green and quietly move your numbers.
 
-On my own Uber driver data I changed one line in a staging model: the trip timestamp converted to a date in Los Angeles time became a date in UTC. All 20 dbt tests still passed. But trips near midnight slid into neighbouring months, 13 of 27 monthly rows changed, and one month disappeared. Nothing in a test suite flags that. A diff does:
+On my own Uber driver data I changed one line in a staging model: a trip timestamp converted to a date in Los Angeles time became a date in UTC. All 20 dbt tests still passed. But trips near midnight slid into neighbouring months, 13 of 27 monthly rows changed, and one month disappeared. A diff catches it:
 
 ![The bot comment on the pull request](assets/screenshots/pr-comment.png)
-
-## See it in action
-
-This is the real pull request: the change, the commit, and the comment the Action posted by itself.
-
-![The pull request conversation](assets/screenshots/pr-conversation.png)
-
-Every number in that comment comes from SQL running inside the database, so no table data leaves it. Only counts come back. Sample rows are opt-in, because in a public repo a comment would publish your data.
 
 ## Findings so far
 
@@ -59,6 +51,20 @@ No daily run with the drift check yet. The first one is the next scheduled run o
 
 ## How it works
 
+![Infrastructure: pull request, Action, Neon branch with two dbt runs, SQL diff engine, PR comment](assets/infrastructure.svg)
+
+1. **A pull request touches `dbt/`**: the workflow starts (unrelated PRs cost nothing).
+2. **Branch the database**: a copy-on-write clone of production, ready in under a second.
+3. **`dbt run`, base code** into schema `base_*` of that branch.
+4. **`dbt run`, PR code** into schema `head_*` of the *same* branch: same data, different code, so any difference is caused by the PR.
+5. **Diff in SQL**: anti-joins on the keys from your dbt `unique` tests, per-column checks, counts only. No table data leaves the database.
+6. **One comment**, updated in place on every push, then the branch is deleted (even if the check fails).
+
+It reports schema changes (added, removed, retyped columns and tables) and added, removed and changed rows, with a per-column count of what changed.
+
+<details>
+<summary><b>Under the hood</b>: the flow chart, real logs and the generated SQL</summary>
+
 ```mermaid
 flowchart LR
     PR(["pull request<br/>touches dbt/"]) --> A["neon-data-diff<br/>GitHub Action"]
@@ -74,19 +80,15 @@ flowchart LR
     A -->|"always: delete branch"| X(["branch gone"])
 ```
 
-### Step by step
-
 The log lines below are real, copied from the Action run of the demo pull request.
 
-**1. A pull request touches `dbt/`.** The workflow's `paths` filter means unrelated PRs cost nothing.
-
-**2. Branch the database.** The Action creates a Neon branch of production. A branch is a copy-on-write clone: it appeared in about 0.6 seconds in the run below and takes no extra storage until data on it changes.
+**Branch the database** (about 0.6 s in this run):
 
 ```
 Branch ndd/pr-45288459016-2 created successfully
 ```
 
-**3. `dbt run` with the base code.** The target branch is checked out into a separate worktree and built into schema `base_*` (`DBT_SCHEMA=base`). The profile comes from the PR head, so both runs share one connection setup.
+**`dbt run`, base code** (the target branch is checked out into a separate worktree; the profile comes from the PR head so both runs share one connection setup):
 
 ```
 1 of 5 OK created sql view model base_staging.stg_payments
@@ -95,7 +97,7 @@ Branch ndd/pr-45288459016-2 created successfully
 Done. PASS=5 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=5
 ```
 
-**4. `dbt run` with the PR code** into schema `head_*` of the *same* branch. Same project, same data, different code, so anything that differs afterwards is caused by the pull request and not by fresher data.
+**`dbt run`, PR code** (same branch, other schema):
 
 ```
 3 of 5 OK created sql view model head_staging.stg_trips
@@ -103,7 +105,7 @@ Done. PASS=5 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=5
 Done. PASS=5 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=5
 ```
 
-**5. Diff, in SQL.** For each table the engine takes the key from your dbt `unique` tests (via the manifest) and runs queries like these inside Postgres:
+**Diff, in SQL** (queries like these run inside Postgres):
 
 ```sql
 -- removed rows: in base, not in head
@@ -120,43 +122,19 @@ from base_marts.mart_monthly_trips b
 join head_marts.mart_monthly_trips h on b.month = h.month;   -- 13
 ```
 
-**6. Comment and clean up.** One comment is created, found later by a hidden marker (`<!-- neon-data-diff -->`) and updated in place on every push, never duplicated. The branch is deleted in a step that always runs, even when the check fails.
+**The comment and clean-up.** The comment is found later by a hidden marker (`<!-- neon-data-diff -->`) so it is updated, never duplicated:
 
 ```
 PR comment updated
 ```
 
-## Design decisions
+The whole conversation of that pull request, including the comment the Action posted by itself:
 
-- **One branch, two schemas.** Separate branches have separate endpoints and cannot be joined, so base and head are built into two schemas of one branch and compared with plain SQL joins.
-- **Comparison runs in the database.** No table data is pulled into Python or into logs. Only counts come back, which is also what makes it safe on private data.
-- **Keys come from your tests.** A `unique` (or `dbt_utils.unique_combination_of_columns`) test is already a statement of what identifies a row, so the manifest is the source of truth. No key, or a key that is not actually unique, falls back to a set comparison (`EXCEPT ALL`), and the report says so.
-- **`NULL` to value is a change.** The check uses `IS DISTINCT FROM`, not `<>`, which would silently skip `NULL`s.
-- **Float noise is not a change.** Numeric columns use a tolerance (default `1e-9`) so `0.1 + 0.2` vs `0.3` is not reported.
-- **Opt-in for anything that could leak or mislead.** Sample rows are off by default (public repos). `sum()` shifts are off by default (summing averages or percentages is meaningless).
-- **Base and head use the same profile**, taken from the PR head, so a change to the connection setup cannot make base and head differ.
-- **`dbt run`, not `dbt build`.** The Action compares data, it does not replace your test job.
+![The pull request conversation](assets/screenshots/pr-conversation.png)
 
-## Infrastructure
+**Keyed vs unkeyed tables.** With a key, the engine anti-joins for added and removed rows and counts changed rows per column. Without a key (or if the key is not unique) it falls back to `EXCEPT ALL` in both directions; a changed row then shows up as one removed plus one added, and the report says so.
 
-![Infrastructure: pull request, Action, Neon branch with two dbt runs, SQL diff engine, PR comment](assets/infrastructure.svg)
-
-| Layer | Tool | Role |
-|---|---|---|
-| Database | Neon (Postgres 18) | copy-on-write branch per PR, deleted afterwards |
-| Transform | dbt-core 1.12 + dbt-postgres | builds the models twice, base and head |
-| Diff engine | Python + psycopg 3 / DuckDB | generates the comparison SQL, runs it in the database (Postgres schemas or two DuckDB files) |
-| Delivery | GitHub composite Action | create branch, run dbt, diff, comment, cleanup |
-| Comment | GitHub REST API | one comment found by a hidden marker, updated in place |
-
-### CI/CD
-
-| Workflow | Trigger | What it runs | Status |
-|---|---|---|---|
-| [CI](.github/workflows/ci.yml) | push to `main`, every PR | pytest on Python 3.10 / 3.12 / 3.13 x Postgres 16 / 17 (6 jobs, DuckDB tests included), plus a check that `action.yml` parses | [![CI](https://github.com/evgeniimatveev/neon-data-diff/actions/workflows/ci.yml/badge.svg)](https://github.com/evgeniimatveev/neon-data-diff/actions/workflows/ci.yml) |
-| [Findings](.github/workflows/findings.yml) | daily + manual | rebuilds the "Findings so far" block above from public GitHub data, commits only when it changed | [![Findings](https://github.com/evgeniimatveev/neon-data-diff/actions/workflows/findings.yml/badge.svg)](https://github.com/evgeniimatveev/neon-data-diff/actions/workflows/findings.yml) |
-
-44 tests: the diff engine against a real Postgres (added / removed / changed rows, tolerance, NULLs, schema changes, unkeyed fallback, composite keys), the same engine on two DuckDB files (growth vs rewritten history), the CLI (exit codes, thresholds, missing config), the renderer, the manifest key reader, the sticky-comment logic against a fake GitHub API, and the findings-block builder.
+</details>
 
 ## Quick start (GitHub Action)
 
@@ -173,9 +151,12 @@ steps:
       neon-project-id: ${{ vars.NEON_PROJECT_ID }}
 ```
 
-Full workflow: [`examples/neon-data-diff.yml`](examples/neon-data-diff.yml).
+Your dbt profile must read its connection from environment variables (`DBT_HOST`, `DBT_USER`, `DBT_PASSWORD`, `DBT_DBNAME`, `DBT_SCHEMA`). Full workflow: [`examples/neon-data-diff.yml`](examples/neon-data-diff.yml).
 
-**Contract with your dbt project.** The profile (taken from the PR head for both runs) must read its connection from environment variables:
+<details>
+<summary><b>Profile contract and all Action inputs</b></summary>
+
+The profile (taken from the PR head for both runs):
 
 ```yaml
 host: "{{ env_var('DBT_HOST') }}"
@@ -197,17 +178,28 @@ With a custom schema `marts`, dbt writes `base_marts` and `head_marts`, which ar
 | `samples` | `0` | sample changed rows per table (keep 0 on public repos) |
 | `database` / `role` / `base-ref` / `python-version` / `github-token` | sensible defaults | see `action.yml` |
 
-## Drift watch (DuckDB, daily pipelines)
+Pull requests from forks get no secrets and a read-only token, so the check cannot run there. For a personal or internal repo this does not matter.
 
-The same engine compares **two DuckDB files**: yesterday's database and today's. Both are attached into one session, so tables are joined directly. This catches a pipeline that silently rewrites history: for append-only data, new rows are normal, but changed or removed old rows are not.
+</details>
+
+## Drift watch (daily pipelines)
+
+The same engine compares **two DuckDB files**, yesterday's database and today's. For append-only data new rows are normal, but changed or removed old rows mean the pipeline silently rewrote history. Your pipeline already downloads the database before it runs, so copy that file first and diff after:
 
 ```bash
-pip install "neon-data-diff[duckdb] @ git+https://github.com/evgeniimatveev/neon-data-diff"
-
-neon-data-diff   --duckdb-base yesterday.duckdb --duckdb-head today.duckdb   --key events=event_id --key daily_stats=day,city   --base-label yesterday --head-label today --title "Data drift"   --max-rewrite-pct 0          # growth is fine, any rewritten row fails
+neon-data-diff \
+  --duckdb-base yesterday.duckdb --duckdb-head today.duckdb \
+  --key events=event_id --key daily_stats=day,city \
+  --base-label yesterday --head-label today --title "Data drift" \
+  --max-rewrite-pct 0        # growth is fine, any rewritten row fails
 ```
 
-No extra storage is needed: your pipeline already downloads the database before it runs, so copy that file first and diff after. A full workflow that does this and opens an issue when history changes: [`examples/drift-watch.yml`](examples/drift-watch.yml).
+A full workflow that does this and opens an issue when history changes: [`examples/drift-watch.yml`](examples/drift-watch.yml). Install with `pip install "neon-data-diff[duckdb] @ git+https://github.com/evgeniimatveev/neon-data-diff"`.
+
+<details>
+<summary><b>Example drift report</b></summary>
+
+From a simulation on the real schema of a daily job-market pipeline: 110 appended rows (normal) and one silently edited historical row (flagged).
 
 ```
 ## Data drift
@@ -219,15 +211,35 @@ No extra storage is needed: your pipeline already downloads the database before 
 | `job_market_history` | 9,240 -> 9,350 | 110 | 0 | 1 | 1.2% |
 ```
 
-The output above is from a simulation on the real schema of a daily job-market pipeline: 110 appended rows (normal) and one silently edited historical row (flagged).
+</details>
 
-## What it compares
+## Limitations
 
-- **Schema:** added, removed and retyped columns; added and removed tables.
-- **Keyed tables:** anti-joins on the key for added and removed rows, and a per-column count of changed rows.
-- **Unkeyed tables** (no key, or key not unique): `EXCEPT ALL` in both directions. A changed row then shows up as one removed plus one added, and the report says so.
+- Postgres mode: both schemas must live in the same database. DuckDB mode: two files, attached read-only.
+- Non-deterministic models (e.g. `current_timestamp`) always show as changed.
+- The Action is verified end to end on one project (the demo above), not yet on a wide range of dbt setups.
+- Similar tools exist (Datafold data-diff, dbt-audit-helper, Recce). This one is a small, Neon-branch-native alternative with no extra infrastructure.
 
-## CLI
+---
+
+## More details
+
+<details>
+<summary><b>Design decisions</b></summary>
+
+- **One branch, two schemas.** Separate branches have separate endpoints and cannot be joined, so base and head are built into two schemas of one branch and compared with plain SQL joins.
+- **Comparison runs in the database.** No table data is pulled into Python or into logs. Only counts come back, which is also what makes it safe on private data.
+- **Keys come from your tests.** A `unique` (or `dbt_utils.unique_combination_of_columns`) test is already a statement of what identifies a row, so the manifest is the source of truth.
+- **`NULL` to value is a change.** The check uses `IS DISTINCT FROM`, not `<>`, which would silently skip `NULL`s.
+- **Float noise is not a change.** Numeric columns use a tolerance (default `1e-9`) so `0.1 + 0.2` vs `0.3` is not reported.
+- **Opt-in for anything that could leak or mislead.** Sample rows are off by default (public repos). `sum()` shifts are off by default (summing averages or percentages is meaningless).
+- **Base and head use the same profile**, taken from the PR head, so a change to the connection setup cannot make base and head differ.
+- **`dbt run`, not `dbt build`.** The Action compares data, it does not replace your test job.
+
+</details>
+
+<details>
+<summary><b>CLI reference</b></summary>
 
 ```bash
 pip install git+https://github.com/evgeniimatveev/neon-data-diff   # not on PyPI
@@ -254,7 +266,30 @@ neon-data-diff \
 | `--base-label` / `--head-label` / `--title` | names and heading used in the report |
 | `--post-comment` | create or update the sticky PR comment (`GITHUB_TOKEN`, `GITHUB_REPOSITORY`, PR from `--pr` or `GITHUB_REF`) |
 
-## FAQ
+</details>
+
+<details>
+<summary><b>Infrastructure and CI/CD</b></summary>
+
+| Layer | Tool | Role |
+|---|---|---|
+| Database | Neon (Postgres 18) | copy-on-write branch per PR, deleted afterwards |
+| Transform | dbt-core 1.12 + dbt-postgres | builds the models twice, base and head |
+| Diff engine | Python + psycopg 3 / DuckDB | generates the comparison SQL, runs it in the database (Postgres schemas or two DuckDB files) |
+| Delivery | GitHub composite Action | create branch, run dbt, diff, comment, cleanup |
+| Comment | GitHub REST API | one comment found by a hidden marker, updated in place |
+
+| Workflow | Trigger | What it runs | Status |
+|---|---|---|---|
+| [CI](.github/workflows/ci.yml) | push to `main`, every PR | pytest on Python 3.10 / 3.12 / 3.13 x Postgres 16 / 17 (6 jobs, DuckDB tests included), plus a check that `action.yml` parses | [![CI](https://github.com/evgeniimatveev/neon-data-diff/actions/workflows/ci.yml/badge.svg)](https://github.com/evgeniimatveev/neon-data-diff/actions/workflows/ci.yml) |
+| [Findings](.github/workflows/findings.yml) | daily + manual | rebuilds the "Findings so far" block above from public GitHub data, commits only when it changed | [![Findings](https://github.com/evgeniimatveev/neon-data-diff/actions/workflows/findings.yml/badge.svg)](https://github.com/evgeniimatveev/neon-data-diff/actions/workflows/findings.yml) |
+
+44 tests: the diff engine against a real Postgres (added / removed / changed rows, tolerance, NULLs, schema changes, unkeyed fallback, composite keys), the same engine on two DuckDB files (growth vs rewritten history), the CLI (exit codes, thresholds, missing config), the renderer, the manifest key reader, the sticky-comment logic against a fake GitHub API, and the findings-block builder.
+
+</details>
+
+<details>
+<summary><b>FAQ</b></summary>
 
 **Does it touch my production database?** No. Production is only the source the branch is cloned from. Every write (both dbt runs) happens on the clone, which is deleted at the end.
 
@@ -266,14 +301,10 @@ neon-data-diff \
 
 **Is it Neon-only?** No. The diff engine works on any Postgres with two schemas, and on two DuckDB files (drift watch). The pull-request Action is built around Neon branches.
 
-## Limitations
+</details>
 
-- Postgres mode: both schemas must live in the same database. DuckDB mode: two files, attached read-only.
-- Non-deterministic models (e.g. `current_timestamp`) always show as changed.
-- The Action is verified end to end on one project (the demo above), not yet on a wide range of dbt setups.
-- Similar tools exist (Datafold data-diff, dbt-audit-helper, Recce). This one is a small, Neon-branch-native alternative with no extra infrastructure.
-
-## Development
+<details>
+<summary><b>Development</b></summary>
 
 ```bash
 # needs a throwaway Postgres; the tests create and drop the schemas "base" and "head"
@@ -284,6 +315,8 @@ python docs/build.py
 ```
 
 Do not point `TEST_DATABASE_URL` at a database you care about.
+
+</details>
 
 ---
 
