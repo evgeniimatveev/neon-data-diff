@@ -11,6 +11,12 @@ def _fmt(n: float | None) -> str:
     return f"{n:,.2f}".rstrip("0").rstrip(".") if isinstance(n, float) else f"{n:,}"
 
 
+def _rewritten(d: TableDiff) -> str:
+    if d.status == "removed":
+        return f"{d.base_rows:,} (table removed)"
+    return f"{d.rows_removed + (d.rows_changed or 0):,}"
+
+
 def render_markdown(
     diffs: list[TableDiff],
     base: str,
@@ -40,7 +46,7 @@ def render_markdown(
         if over:
             lines += [
                 f"**History rewritten** (removed + changed rows above {max_rewrite_pct:g}% of base): "
-                + ", ".join(f"`{d.table}` {d.rewrite_pct:.1f}%" for d in over),
+                + ", ".join(f"`{d.table}` {_rewritten(d)} row(s)" for d in over),
                 "",
             ]
     lines += [

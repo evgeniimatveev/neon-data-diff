@@ -110,7 +110,8 @@ def test_cli_duckdb_exit_codes(files, capsys):
     con.execute("update t set v = -1 where id = 0")
     con.close()
     assert main(args + ["--max-rewrite-pct", "0"]) == 1  # rewrite fails
-    assert "History rewritten" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "History rewritten" in out and "`t` 1 row(s)" in out
 
 
 def test_cli_argument_validation(files, capsys):

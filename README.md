@@ -172,6 +172,30 @@ With a custom schema `marts`, dbt writes `base_marts` and `head_marts`, which ar
 | `samples` | `0` | sample changed rows per table (keep 0 on public repos) |
 | `database` / `role` / `base-ref` / `python-version` / `github-token` | sensible defaults | see `action.yml` |
 
+## Drift watch (DuckDB, daily pipelines)
+
+The same engine compares **two DuckDB files**: yesterday's database and today's. Both are attached into one session, so tables are joined directly. This catches a pipeline that silently rewrites history: for append-only data, new rows are normal, but changed or removed old rows are not.
+
+```bash
+pip install "neon-data-diff[duckdb] @ git+https://github.com/evgeniimatveev/neon-data-diff"
+
+neon-data-diff   --duckdb-base yesterday.duckdb --duckdb-head today.duckdb   --key events=event_id --key daily_stats=day,city   --base-label yesterday --head-label today --title "Data drift"   --max-rewrite-pct 0          # growth is fine, any rewritten row fails
+```
+
+No extra storage is needed: your pipeline already downloads the database before it runs, so copy that file first and diff after. A full workflow that does this and opens an issue when history changes: [`examples/drift-watch.yml`](examples/drift-watch.yml).
+
+```
+## Data drift
+`yesterday` (base) vs `today` (head)
+
+**History rewritten** (removed + changed rows above 0% of base): `job_market_history` 1 row(s)
+
+| Table | Rows base -> head | Added | Removed | Changed | Touched |
+| `job_market_history` | 9,240 -> 9,350 | 110 | 0 | 1 | 1.2% |
+```
+
+The output above is from a simulation on the real schema of a daily job-market pipeline: 110 appended rows (normal) and one silently edited historical row (flagged).
+
 ## What it compares
 
 - **Schema:** added, removed and retyped columns; added and removed tables.
@@ -200,6 +224,9 @@ neon-data-diff \
 | `--only TABLE` | limit to some tables |
 | `--fail-on-change` | exit 1 if anything differs |
 | `--max-change-pct N` | exit 1 if added+removed+changed rows exceed N% of base rows in any table |
+| `--max-rewrite-pct N` | exit 1 if removed+changed rows exceed N% of base rows (growth by added rows is allowed; 0 = any rewrite fails) |
+| `--duckdb-base` / `--duckdb-head` / `--duckdb-schema` | DuckDB mode: compare two database files (default schema `main`) |
+| `--base-label` / `--head-label` / `--title` | names and heading used in the report |
 | `--post-comment` | create or update the sticky PR comment (`GITHUB_TOKEN`, `GITHUB_REPOSITORY`, PR from `--pr` or `GITHUB_REF`) |
 
 ## FAQ
@@ -212,11 +239,11 @@ neon-data-diff \
 
 **Why not just compare `dbt test` results?** Tests assert rules you already thought of. A diff shows what you did not think of.
 
-**Is it Neon-only?** The diff engine works on any Postgres with two schemas (see the CLI). The Action is built around Neon branches.
+**Is it Neon-only?** No. The diff engine works on any Postgres with two schemas, and on two DuckDB files (drift watch). The pull-request Action is built around Neon branches.
 
 ## Limitations
 
-- Both schemas must live in the same database.
+- Postgres mode: both schemas must live in the same database. DuckDB mode: two files, attached read-only.
 - Non-deterministic models (e.g. `current_timestamp`) always show as changed.
 - The Action is verified end to end on one project (the demo above), not yet on a wide range of dbt setups.
 - Similar tools exist (Datafold data-diff, dbt-audit-helper, Recce). This one is a small, Neon-branch-native alternative with no extra infrastructure.

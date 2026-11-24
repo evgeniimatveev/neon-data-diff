@@ -1,0 +1,54 @@
+name: Daily pipeline with drift watch
+
+# Snapshot the database before the pipeline touches it, run the pipeline, then diff
+# "yesterday" against "today". Growth (new rows) is normal; rewritten history is not.
+
+on:
+  schedule:
+    - cron: "0 14 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write            # to open an issue when history was rewritten
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Download the current database (your own step)
+        run: python scripts/download_db.py          # -> data/app.duckdb
+
+      - name: Snapshot yesterday's database
+        run: cp data/app.duckdb "$RUNNER_TEMP/yesterday.duckdb"
+
+      - name: Run the pipeline
+        run: python run_pipeline.py                 # updates data/app.duckdb
+
+      - name: Drift check
+        id: drift
+        continue-on-error: true                     # report, do not block the upload
+        run: |
+          pip install "neon-data-diff[duckdb] @ git+https://github.com/evgeniimatveev/neon-data-diff@v0.2.0"
+          neon-data-diff \
+            --duckdb-base "$RUNNER_TEMP/yesterday.duckdb" --duckdb-head data/app.duckdb \
+            --key events=event_id --key daily_stats=day,city \
+            --base-label yesterday --head-label today --title "Data drift" \
+            --max-rewrite-pct 0 --markdown "$RUNNER_TEMP/drift.md"
+          rc=$?
+          cat "$RUNNER_TEMP/drift.md" >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
+
+      - name: Open an issue if history was rewritten
+        if: steps.drift.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue create --title "Data drift on $(date -u +%F)" --body-file "$RUNNER_TEMP/drift.md"
+
+      - name: Upload the database (your own step)
+        run: python scripts/upload_db.py
