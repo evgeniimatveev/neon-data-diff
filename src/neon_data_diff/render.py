@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .diff import TableDiff, breaches
+from .diff import TableDiff, breaches, rewrite_breaches
 
 MARKER = "<!-- neon-data-diff -->"
 
@@ -11,15 +11,23 @@ def _fmt(n: float | None) -> str:
     return f"{n:,.2f}".rstrip("0").rstrip(".") if isinstance(n, float) else f"{n:,}"
 
 
+def _rewritten(d: TableDiff) -> str:
+    if d.status == "removed":
+        return f"{d.base_rows:,} (table removed)"
+    return f"{d.rows_removed + (d.rows_changed or 0):,}"
+
+
 def render_markdown(
     diffs: list[TableDiff],
     base: str,
     head: str,
     show_samples: bool = False,
     max_change_pct: float | None = None,
+    max_rewrite_pct: float | None = None,
+    title: str = "Data diff",
 ) -> str:
     changed = [d for d in diffs if d.has_changes]
-    lines = [MARKER, "## Data diff", f"`{base}` (base) vs `{head}` (head)", ""]
+    lines = [MARKER, f"## {title}", f"`{base}` (base) vs `{head}` (head)", ""]
     if not changed:
         lines.append(f"No differences across {len(diffs)} table(s).")
         return "\n".join(lines) + "\n"
@@ -31,6 +39,14 @@ def render_markdown(
             lines += [
                 f"**Threshold exceeded** (max {max_change_pct:g}% of rows): "
                 + ", ".join(f"`{d.table}` {d.change_pct:.1f}%" for d in over),
+                "",
+            ]
+    if max_rewrite_pct is not None:
+        over = rewrite_breaches(diffs, max_rewrite_pct)
+        if over:
+            lines += [
+                f"**History rewritten** (removed + changed rows above {max_rewrite_pct:g}% of base): "
+                + ", ".join(f"`{d.table}` {_rewritten(d)} row(s)" for d in over),
                 "",
             ]
     lines += [

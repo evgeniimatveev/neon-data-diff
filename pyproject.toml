@@ -1,12 +1,13 @@
 [project]
 name = "neon-data-diff"
-version = "0.1.0"
-description = "Data diff for dbt models: compare two schemas in one Postgres/Neon branch and report schema, row and value changes."
+version = "0.2.0"
+description = "Data diff for dbt models and daily pipelines: compare two Postgres schemas or two DuckDB files and report schema, row and value changes."
 requires-python = ">=3.10"
 dependencies = ["psycopg[binary]>=3.2"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+duckdb = ["duckdb>=1.1"]
+dev = ["pytest>=8", "duckdb>=1.1"]
 
 [project.scripts]
 neon-data-diff = "neon_data_diff.cli:main"
