@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>neon-data-diff · git diff for your dbt data</title>
+<meta name="description" content="A GitHub Action that branches Neon Postgres per pull request, runs dbt on base and PR code, diffs the results in SQL and comments on the PR.">
+<meta name="color-scheme" content="dark">
+<style>
+  :root {
+    --bg: #070b12; --panel: #0d1624; --panel-2: #111d30; --line: #1e2c44;
+    --text: #e6edf7; --muted: #8fa0ba; --faint: #5d6e8a;
+    --neon: #00e599; --neon-dim: rgba(0, 229, 153, .14);
+    --red: #ff5c7a; --red-dim: rgba(255, 92, 122, .16);
+    --amber: #ffb84d; --blue: #5b9dff; --violet: #b57bff;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, "SFMono-Regular", Menlo, monospace;
+    --sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 var(--sans);
+         background-image: radial-gradient(1100px 500px at 15% -10%, rgba(0,229,153,.13), transparent 60%),
+                           radial-gradient(900px 500px at 100% 10%, rgba(91,157,255,.08), transparent 60%); }
+  a { color: var(--neon); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, pre, .mono { font-family: var(--mono); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+  section { padding: 56px 0; }
+  h2 { font-size: clamp(1.5rem, 3vw, 2rem); margin: 0 0 8px; letter-spacing: -.01em; }
+  .lead { color: var(--muted); max-width: 70ch; margin: 0 0 28px; }
+  .eyebrow { font: 700 .78rem/1.5 var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--neon); margin-bottom: 14px; line-height: 1.5; }
+
+  /* reveal */
+  .reveal { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+
+  /* hero */
+  header.hero { padding: 72px 0 24px; }
+  h1 { font-size: clamp(2.3rem, 6vw, 4rem); line-height: 1.05; margin: 0 0 16px; letter-spacing: -.02em; }
+  h1 .grad { background: linear-gradient(90deg, #e8fff6, var(--neon)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { font-size: 1.2rem; color: var(--muted); max-width: 60ch; margin: 0 0 26px; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 26px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 12px; font-weight: 600;
+         border: 1px solid var(--line); color: var(--text); background: var(--panel); transition: transform .15s, border-color .15s, background .15s; }
+  .btn:hover { transform: translateY(-2px); border-color: var(--neon); text-decoration: none; }
+  .btn.primary { background: var(--neon); color: #03271b; border-color: var(--neon); }
+  .chips { display: flex; gap: 10px; flex-wrap: wrap; }
+  .chip { padding: 6px 12px; border-radius: 999px; font-size: .86rem; border: 1px solid var(--line); color: var(--muted); background: rgba(13,22,36,.7); }
+  .chip b { color: var(--text); }
+  .chip.ok { border-color: rgba(0,229,153,.5); color: var(--neon); }
+
+  /* cards */
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
+
+  /* playground */
+  .controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-bottom: 16px; }
+  .seg { display: inline-flex; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 4px; }
+  .seg button { appearance: none; border: 0; background: transparent; color: var(--muted); font: 600 .95rem var(--sans); padding: 9px 16px; border-radius: 9px; cursor: pointer; transition: background .2s, color .2s; }
+  .seg button[aria-pressed="true"] { background: var(--neon); color: #03271b; }
+  .seg button:focus-visible, .btn:focus-visible, .step:focus-visible, .copy:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .codediff { font: .86rem/1.7 var(--mono); border-radius: 12px; overflow: hidden; border: 1px solid var(--line); min-width: 0; }
+  .codediff div { padding: 2px 14px; white-space: pre; overflow-x: auto; }
+  .codediff .minus { background: var(--red-dim); color: #ff9cb0; }
+  .codediff .plus { background: var(--neon-dim); color: #6ff0c0; }
+  .codediff .dim { opacity: .35; }
+  .pgrid > *, .pipe > *, .two > * { min-width: 0; }
+  .pgrid { display: grid; grid-template-columns: 1.55fr 1fr; gap: 18px; align-items: start; }
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 18px; }
+  .stat { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .stat .k { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .1em; }
+  .stat .v { font: 700 1.9rem/1.2 var(--sans); }
+  .stat.add .v { color: var(--neon); } .stat.rem .v { color: var(--red); } .stat.chg .v { color: var(--amber); }
+  .tests { margin: 0 18px 18px; padding: 14px 16px; border-radius: 12px; background: var(--neon-dim); border: 1px solid rgba(0,229,153,.45); }
+  .tests b { color: var(--neon); }
+  .verdict { margin: 0 18px 18px; font-size: .95rem; color: var(--muted); min-height: 3em; }
+  .strip { display: grid; grid-template-columns: repeat(27, 1fr); gap: 3px; padding: 18px 18px 6px; }
+  .strip i { height: 26px; border-radius: 5px; background: #1a2740; transition: background .4s, transform .4s; }
+  .strip i.up { background: var(--neon); } .strip i.down { background: var(--amber); } .strip i.gone { background: repeating-linear-gradient(45deg, var(--red) 0 4px, #5a1b29 4px 8px); }
+  .strip-cap { padding: 0 18px 14px; font-size: .78rem; color: var(--faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 14px; }
+  .tablewrap { max-height: 520px; overflow: auto; border-top: 1px solid var(--line); }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  th, td { text-align: right; padding: 7px 12px; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { position: sticky; top: 0; background: var(--panel-2); color: var(--muted); font-weight: 600; z-index: 1; }
+  tbody tr { border-top: 1px solid rgba(30,44,68,.6); }
+  td.chg { color: var(--amber); background: rgba(255,184,77,.08); }
+  td .arrow { color: var(--faint); margin: 0 4px; }
+  tr.gone td { color: #ff9cb0; background: var(--red-dim); }
+  tr.gone td:first-child { text-decoration: line-through; }
+  .tag { font: 700 .7rem var(--sans); padding: 2px 7px; border-radius: 6px; margin-left: 8px; background: var(--red); color: #2a0610; text-decoration: none; display: inline-block; }
+  .fine { color: var(--faint); font-size: .82rem; margin-top: 10px; }
+
+  /* pipeline */
+  .pipe { display: grid; grid-template-columns: 340px 1fr; gap: 18px; align-items: start; }
+  .steps { display: flex; flex-direction: column; gap: 8px; }
+  .step { text-align: left; appearance: none; width: 100%; background: var(--panel); border: 1px solid var(--line); color: var(--text); border-radius: 14px; padding: 12px 14px; cursor: pointer; display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: center; position: relative; overflow: hidden; transition: border-color .2s, background .2s; }
+  .step .n { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font: 800 .95rem var(--sans); background: var(--panel-2); color: var(--muted); }
+  .step .t { font-weight: 700; } .step .d { color: var(--muted); font-size: .84rem; line-height: 1.35; }
+  .step[aria-selected="true"] { border-color: var(--neon); background: var(--panel-2); }
+  .step[aria-selected="true"] .n { background: var(--neon); color: #03271b; }
+  .step .bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--neon); }
+  .step.done .n { background: rgba(0,229,153,.25); color: var(--neon); }
+  .term { overflow: hidden; }
+  .term .bar { display: flex; align-items: center; gap: 7px; padding: 11px 14px; background: var(--panel-2); border-bottom: 1px solid var(--line); }
+  .term .bar i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .term .bar span { margin-left: 8px; color: var(--muted); font: .82rem var(--mono); }
+  .term pre { margin: 0; padding: 16px 18px; font-size: .84rem; line-height: 1.65; overflow-x: auto; min-height: 330px; color: #cdd9ee; }
+  .term .why { padding: 14px 18px 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: .94rem; }
+  .k-c { color: var(--faint); } .k-g { color: var(--neon); } .k-r { color: var(--red); } .k-a { color: var(--amber); } .k-b { color: var(--blue); } .k-v { color: var(--violet); }
+
+  /* install */
+  .snip { position: relative; }
+  .snip pre { margin: 0; padding: 18px 20px; overflow-x: auto; font-size: .88rem; line-height: 1.65; }
+  .copy { position: absolute; top: 12px; right: 12px; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 9px; padding: 6px 12px; font: 600 .82rem var(--sans); cursor: pointer; }
+  .copy:hover { border-color: var(--neon); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  footer { padding: 36px 0 60px; color: var(--faint); border-top: 1px solid var(--line); font-size: .9rem; }
+
+  @media (max-width: 860px) {
+    .pgrid, .pipe, .two { grid-template-columns: 1fr; }
+    .step .d { display: none; }
+    .strip { gap: 2px; }
+    section { padding: 40px 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .reveal { opacity: 1; transform: none; transition: none; }
+    * { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">dbt · Neon · Postgres · GitHub Actions</div>
+    <h1><span class="grad">git diff</span> for your dbt data.</h1>
+    <p class="sub">Tests say your data is valid. neon-data-diff tells you what changed: on every pull request it branches your Neon database, runs dbt on the base and PR code, diffs the results in SQL and comments on the PR.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/evgeniimatveev/neon-data-diff">View on GitHub</a>
+      <a class="btn" href="https://github.com/evgeniimatveev/uber-driver-analytics/pull/12">Real PR with the bot comment</a>
+      <a class="btn" href="#install">Install in 30 seconds</a>
+    </div>
+    <div class="chips">
+      <span class="chip ok">20 / 20 dbt tests green</span>
+      <span class="chip"><b>13 of 27</b> monthly rows changed</span>
+      <span class="chip">25 tests · Postgres 16/17 · MIT</span>
+    </div>
+  </div>
+</header>
+
+<main>
+<section id="try" class="reveal">
+  <div class="wrap">
+    <div class="eyebrow">Try it</div>
+    <h2>Change one line. Watch the numbers move.</h2>
+    <p class="lead">This is the real story behind the project. In my Uber driver analytics, a staging model converts each trip's timestamp to a date. Switch the time zone from Los Angeles to UTC and every dbt test still passes. Pick the head code below: the diff is computed in your browser from the two result sets of that run (the tool itself does the same comparison in SQL).</p>
+
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Time zone used by the head code">
+        <button type="button" id="tz-la" aria-pressed="false">head: Los Angeles (same as base)</button>
+        <button type="button" id="tz-utc" aria-pressed="true">head: UTC (the PR)</button>
+      </div>
+    </div>
+
+    <div class="pgrid">
+      <div class="card">
+        <div style="padding:16px 18px 0">
+          <div class="codediff mono" aria-label="The one-line code change">
+            <div class="dim">select trip_id, status, request_at,</div>
+            <div class="minus" id="line-la">-   (request_at at time zone 'America/Los_Angeles')::date as request_date_la,</div>
+            <div class="plus" id="line-utc">+   (request_at at time zone 'UTC')::date as request_date_la,</div>
+            <div class="dim">... from raw.trips</div>
+          </div>
+        </div>
+        <div class="strip" id="strip" aria-hidden="true"></div>
+        <div class="strip-cap"><span id="cap-first"></span><span>each square = one month · amber/green = fewer/more trips · hatched = month disappeared</span><span id="cap-last"></span></div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Month</th><th>Trips</th><th>Gross $</th><th>Avg fare $</th><th>Surged %</th><th>Airport %</th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" aria-live="polite">
+        <div class="eyebrow" style="padding:18px 18px 0;margin:0">mart_monthly_trips</div>
+        <div class="stats">
+          <div class="stat"><div class="k">Rows base → head</div><div class="v"><span id="s-rows">27 → 27</span></div></div>
+          <div class="stat"><div class="k">Touched</div><div class="v"><span id="s-pct">0%</span></div></div>
+          <div class="stat add"><div class="k">Added</div><div class="v" id="s-add">0</div></div>
+          <div class="stat rem"><div class="k">Removed</div><div class="v" id="s-rem">0</div></div>
+          <div class="stat chg" style="grid-column: span 2"><div class="k">Changed rows</div><div class="v" id="s-chg">0</div><div class="mono" id="s-cols" style="font-size:.8rem;color:var(--muted)"></div></div>
+        </div>
+        <div class="tests"><b>20 / 20 dbt tests passed.</b> Same result for both settings: the data is still valid.</div>
+        <p class="verdict" id="verdict"></p>
+      </div>
+    </div>
+    <p class="fine">Data: the real mart output of the demo run (27 monthly aggregates, 2022-05 to 2025-05). No trip-level data is published.</p>
+  </div>
+</section>
+
+<section id="how" class="reveal">
+  <div class="wrap">
+    <div class="eyebrow">How it works</div>
+    <h2>Six steps, all in one workflow run.</h2>
+    <p class="lead">Click a step, or let it play. The logs and SQL below are real: taken from the demo pull request's Action run and from the queries the engine generates.</p>
+    <div class="pipe">
+      <div class="steps" id="steps" role="tablist" aria-label="Pipeline steps"></div>
+      <div class="card term">
+        <div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span id="term-title"></span></div>
+        <pre id="term-body" tabindex="0"></pre>
+        <div class="why" id="term-why"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="install" class="reveal">
+  <div class="wrap">
+    <div class="eyebrow">Install</div>
+    <h2>One step in your workflow.</h2>
+    <p class="lead">Add a Neon API key as a secret and the project ID as a variable. Your dbt profile reads its connection from environment variables, so base and head can use different schemas.</p>
+    <div class="two">
+      <div class="card snip">
+        <button class="copy" type="button" data-target="snip-yml">Copy</button>
+<pre id="snip-yml"><span class="k-c"># .github/workflows/data-diff.yml</span>
+<span class="k-b">on</span>:
+  <span class="k-b">pull_request</span>:
+    <span class="k-b">paths</span>: [<span class="k-g">"dbt/**"</span>]
+<span class="k-b">permissions</span>:
+  <span class="k-b">contents</span>: read
+  <span class="k-b">pull-requests</span>: write
+<span class="k-b">jobs</span>:
+  <span class="k-b">data-diff</span>:
+    <span class="k-b">runs-on</span>: ubuntu-latest
+    <span class="k-b">steps</span>:
+      - <span class="k-b">uses</span>: actions/checkout@v7
+      - <span class="k-b">uses</span>: <span class="k-g">evgeniimatveev/neon-data-diff@v0</span>
+        <span class="k-b">with</span>:
+          <span class="k-b">neon-api-key</span>: ${{ secrets.NEON_API_KEY }}
+          <span class="k-b">neon-project-id</span>: ${{ vars.NEON_PROJECT_ID }}</pre>
+      </div>
+      <div class="card snip">
+        <button class="copy" type="button" data-target="snip-prof">Copy</button>
+<pre id="snip-prof"><span class="k-c"># dbt/profiles.yml: connection from env vars</span>
+<span class="k-b">uber</span>:
+  <span class="k-b">target</span>: default
+  <span class="k-b">outputs</span>:
+    <span class="k-b">default</span>:
+      <span class="k-b">type</span>: postgres
+      <span class="k-b">host</span>: "{{ env_var('DBT_HOST') }}"
+      <span class="k-b">user</span>: "{{ env_var('DBT_USER') }}"
+      <span class="k-b">password</span>: "{{ env_var('DBT_PASSWORD') }}"
+      <span class="k-b">dbname</span>: "{{ env_var('DBT_DBNAME') }}"
+      <span class="k-b">schema</span>: "{{ env_var('DBT_SCHEMA') }}"
+      <span class="k-b">sslmode</span>: require</pre>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">Built by Evgenii Matveev · MIT · <a href="https://github.com/evgeniimatveev/neon-data-diff">source</a> · <a href="https://github.com/evgeniimatveev/neon-data-diff/releases">releases</a></div>
+</footer>
+
+<script>
+"use strict";
+const DATA = /*__DATA__*/null;
+const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const COLS = ["completed_trips", "gross_fare_usd", "avg_fare_usd", "surged_pct", "airport_pct"];
+const TOL = 1e-9;
+
+/* ---- the same comparison the tool runs in SQL, done in JS on the two result sets ---- */
+function diffTables(base, head, key, cols) {
+  const h = new Map(head.map(r => [r[key], r]));
+  const b = new Map(base.map(r => [r[key], r]));
+  const out = { added: 0, removed: 0, changed: 0, byCol: {}, changedKeys: new Set(), removedKeys: new Set() };
+  for (const r of head) if (!b.has(r[key])) out.added++;
+  for (const r of base) if (!h.has(r[key])) { out.removed++; out.removedKeys.add(r[key]); }
+  for (const r of base) {
+    const o = h.get(r[key]); if (!o) continue;
+    let any = false;
+    for (const c of cols) {
+      const x = r[c], y = o[c];
+      const differs = (x === null) !== (y === null) || (x !== null && Math.abs(x - y) > TOL);
+      if (differs) { any = true; out.byCol[c] = (out.byCol[c] || 0) + 1; }
+    }
+    if (any) { out.changed++; out.changedKeys.add(r[key]); }
+  }
+  return out;
+}
+
+const $ = id => document.getElementById(id);
+const fmt = (n, d = 2) => Number(n).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmtMonth = m => m.slice(0, 7);
+
+/* ---- animated counters ---- */
+const shown = {};
+function tween(el, to, render) {
+  const from = shown[el.id] ?? 0; shown[el.id] = to;
+  if (reduce || from === to) { el.textContent = render(to); return; }
+  const t0 = performance.now(), dur = 450;
+  (function step(t) {
+    const p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+    el.textContent = render(from + (to - from) * e);
+    if (p < 1) requestAnimationFrame(step);
+  })(t0);
+}
+
+/* ---- playground ---- */
+let tz = "utc";
+function headRows() { return tz === "utc" ? DATA.head : DATA.base; }
+function renderPlayground() {
+  const base = DATA.base, head = headRows();
+  const d = diffTables(base, head, "month", COLS);
+  const headMap = new Map(head.map(r => [r.month, r]));
+  $("tz-la").setAttribute("aria-pressed", tz === "la");
+  $("tz-utc").setAttribute("aria-pressed", tz === "utc");
+  const la = $("line-la"), utc = $("line-utc");
+  if (tz === "la") { la.className = "plus"; la.textContent = "+   (request_at at time zone 'America/Los_Angeles')::date as request_date_la,"; utc.style.display = "none"; }
+  else { la.className = "minus"; la.textContent = "-   (request_at at time zone 'America/Los_Angeles')::date as request_date_la,"; utc.style.display = ""; }
+
+  /* strip */
+  const strip = $("strip"); strip.innerHTML = "";
+  for (const r of base) {
+    const o = headMap.get(r.month), i = document.createElement("i");
+    if (!o) { i.className = "gone"; i.title = fmtMonth(r.month) + ": month disappears"; }
+    else {
+      const dl = o.completed_trips - r.completed_trips;
+      if (dl > 0) i.className = "up"; else if (dl < 0) i.className = "down";
+      if (dl !== 0) i.title = fmtMonth(r.month) + ": " + (dl > 0 ? "+" : "") + dl + " trips";
+    }
+    strip.appendChild(i);
+  }
+  $("cap-first").textContent = fmtMonth(base[0].month); $("cap-last").textContent = fmtMonth(base[base.length - 1].month);
+
+  /* table */
+  const tb = $("rows"); tb.innerHTML = "";
+  for (const r of base) {
+    const o = headMap.get(r.month), tr = document.createElement("tr");
+    const td0 = document.createElement("td"); td0.textContent = fmtMonth(r.month); tr.appendChild(td0);
+    if (!o) {
+      tr.className = "gone"; const tag = document.createElement("span"); tag.className = "tag"; tag.textContent = "REMOVED"; td0.appendChild(tag);
+      for (const c of COLS) { const td = document.createElement("td"); td.textContent = c === "completed_trips" ? r[c] : fmt(r[c], 2); tr.appendChild(td); }
+    } else for (const c of COLS) {
+      const td = document.createElement("td"), x = r[c], y = o[c];
+      const changed = Math.abs(x - y) > TOL, f = v => c === "completed_trips" ? String(v) : fmt(v, 2);
+      if (changed) { td.className = "chg"; td.innerHTML = f(x) + '<span class="arrow">→</span>' + f(y); } else td.textContent = f(x);
+      tr.appendChild(td);
+    }
+    tb.appendChild(tr);
+  }
+
+  /* stats */
+  tween($("s-add"), d.added, v => Math.round(v));
+  tween($("s-rem"), d.removed, v => Math.round(v));
+  tween($("s-chg"), d.changed, v => Math.round(v));
+  const pct = 100 * (d.added + d.removed + d.changed) / Math.max(base.length, 1);
+  tween($("s-pct"), pct, v => v.toFixed(1) + "%");
+  $("s-rows").textContent = base.length + " → " + head.length;
+  $("s-cols").textContent = Object.entries(d.byCol).map(([c, n]) => c + ": " + n).join("  ·  ");
+  $("verdict").textContent = d.changed + d.added + d.removed === 0
+    ? "No differences. The head code produces exactly the same data as base, so the bot comment would say so and stay quiet."
+    : "All 20 tests are green, yet " + d.changed + " of " + base.length + " months have different numbers and " + d.removed + " month disappeared: trips near midnight slid across month boundaries. A test suite cannot see that. A diff can.";
+}
+$("tz-la").addEventListener("click", () => { tz = "la"; renderPlayground(); });
+$("tz-utc").addEventListener("click", () => { tz = "utc"; renderPlayground(); });
+
+/* ---- pipeline ---- */
+const C = (cls, s) => '<span class="' + cls + '">' + s.replace(/&/g, "&amp;").replace(/</g, "&lt;") + "</span>";
+const STEPS = [
+  { t: "Pull request opens", d: "A change under dbt/ triggers the workflow", title: "data-diff.yml",
+    why: "Only pull requests that touch the dbt project run the check (paths filter), so unrelated PRs cost nothing.",
+    body: C("k-c", "# .github/workflows/data-diff.yml") + "\n" + C("k-b", "on") + ":\n  " + C("k-b", "pull_request") + ":\n    " + C("k-b", "paths") + ": [" + C("k-g", '"dbt/**"') + ", " + C("k-g", '".github/workflows/data-diff.yml"') + "]\n\n" + C("k-c", "# the PR changes one line in the staging model:") + "\n" + C("k-r", "- (request_at at time zone 'America/Los_Angeles')::date") + "\n" + C("k-g", "+ (request_at at time zone 'UTC')::date") },
+  { t: "Branch the database", d: "Copy-on-write Neon branch of production", title: "neondatabase/create-branch-action@v6",
+    why: "A Neon branch is a copy-on-write clone: it appears in under a second and costs no extra storage until something changes. Production is never written to.",
+    body: C("k-g", "Branch ndd/pr-45288459016-2 created successfully") + "\n\n" + C("k-c", "# one branch, two schemas: the two dbt runs below share it,") + "\n" + C("k-c", "# because separate branches have separate endpoints and cannot be joined.") },
+  { t: "dbt run: base code", d: "main branch builds into schema base_*", title: "dbt run  ·  DBT_SCHEMA=base",
+    why: "The base code is checked out from the target branch into a separate worktree. The profile comes from the PR head so both runs share one connection setup.",
+    body: C("k-c", "23:26:12  Found 5 models, 15 data tests, 3 sources") + "\n1 of 5 OK created sql view  model " + C("k-b", "base_staging.stg_payments") + "\n2 of 5 OK created sql view  model " + C("k-b", "base_staging.stg_ratings") + "\n3 of 5 OK created sql view  model " + C("k-b", "base_staging.stg_trips") + "\n4 of 5 OK created sql table model " + C("k-b", "base_marts.mart_payment_breakdown") + "  " + C("k-g", "SELECT 11") + "\n5 of 5 OK created sql table model " + C("k-b", "base_marts.mart_monthly_trips") + "  " + C("k-g", "SELECT 27") + "\n" + C("k-g", "Done. PASS=5 WARN=0 ERROR=0") },
+  { t: "dbt run: PR code", d: "PR branch builds into schema head_*", title: "dbt run  ·  DBT_SCHEMA=head",
+    why: "Same project, same data, different code. Anything that differs afterwards is caused by the pull request, not by fresher data.",
+    body: C("k-c", "23:26:18  Found 5 models, 15 data tests, 3 sources") + "\n1 of 5 OK created sql view  model " + C("k-v", "head_staging.stg_payments") + "\n2 of 5 OK created sql view  model " + C("k-v", "head_staging.stg_ratings") + "\n3 of 5 OK created sql view  model " + C("k-v", "head_staging.stg_trips") + "\n5 of 5 OK created sql table model " + C("k-v", "head_marts.mart_monthly_trips") + "  " + C("k-a", "SELECT 26") + "   " + C("k-c", "<- one row fewer") + "\n4 of 5 OK created sql table model " + C("k-v", "head_marts.mart_payment_breakdown") + "  " + C("k-g", "SELECT 11") + "\n" + C("k-g", "Done. PASS=5 WARN=0 ERROR=0") },
+  { t: "Diff, in SQL", d: "Anti-joins and per-column checks, inside Postgres", title: "neon-data-diff  ·  generated queries",
+    why: "Keys come from your dbt unique tests in the manifest. Everything runs inside the database, so only counts come back. Numeric columns use a tolerance so float noise is not reported as change.",
+    body: C("k-c", "-- added rows: in head, not in base") + "\n" + C("k-b", "select count(*) from") + " head_marts.mart_monthly_trips h\n  " + C("k-b", "left join") + " base_marts.mart_monthly_trips b " + C("k-b", "on") + " b.month = h.month\n" + C("k-b", "where") + " b.month " + C("k-b", "is null") + ";   " + C("k-g", "-> 0") + "\n\n" + C("k-c", "-- removed rows: in base, not in head") + "\n" + C("k-b", "select count(*) from") + " base_marts.mart_monthly_trips b\n  " + C("k-b", "left join") + " head_marts.mart_monthly_trips h " + C("k-b", "on") + " b.month = h.month\n" + C("k-b", "where") + " h.month " + C("k-b", "is null") + ";   " + C("k-r", "-> 1") + "\n\n" + C("k-c", "-- changed rows, plus a count per column (same pattern for each)") + "\n" + C("k-b", "select count(*) filter (where") + " (b.gross_fare_usd " + C("k-b", "is distinct from") + " h.gross_fare_usd\n         " + C("k-b", "and not") + " abs(b.gross_fare_usd - h.gross_fare_usd) <= 1e-09) " + C("k-b", "or") + " ...),\n       " + C("k-b", "count(*) filter (where") + " ... completed_trips ...), ...\n" + C("k-b", "from") + " base_marts.mart_monthly_trips b " + C("k-b", "join") + " head_marts.mart_monthly_trips h " + C("k-b", "on") + " b.month = h.month;   " + C("k-a", "-> 13") },
+  { t: "Comment and clean up", d: "One sticky comment; the branch is deleted", title: "PR comment + cleanup",
+    why: "The comment is found by a hidden marker and updated in place on every push, never duplicated. The branch is deleted in a step that always runs, even when the diff fails the check.",
+    body: C("k-c", "<!-- neon-data-diff -->") + "\n" + C("k-g", "## Data diff") + "\n`base_marts` (base) vs `head_marts` (head)\n\n1 of 2 table(s) changed.\n\n| Table | Rows base -> head | Added | Removed | Changed | Touched |\n|---|---|---|---|---|---|\n| `mart_monthly_trips` | 27 -> 26 | 0 | 1 | 13 | 51.9% |\n\n" + C("k-g", "PR comment updated") + "\n" + C("k-g", "Delete Neon branch  ✓") }
+];
+const stepsEl = $("steps"); let cur = 0, timer = null, started = false;
+STEPS.forEach((s, i) => {
+  const b = document.createElement("button");
+  b.className = "step"; b.type = "button"; b.setAttribute("role", "tab"); b.id = "step-" + i;
+  b.innerHTML = '<span class="n">' + (i + 1) + '</span><span><span class="t">' + s.t + '</span><br><span class="d">' + s.d + '</span></span><span class="bar"></span>';
+  b.addEventListener("click", () => { stop(); select(i); });
+  stepsEl.appendChild(b);
+});
+function select(i) {
+  cur = i;
+  STEPS.forEach((_, j) => { const el = $("step-" + j); el.setAttribute("aria-selected", j === i); el.classList.toggle("done", j < i); el.querySelector(".bar").style.width = "0"; });
+  const s = STEPS[i];
+  $("term-title").textContent = s.title; $("term-body").innerHTML = s.body; $("term-why").textContent = s.why;
+}
+function play() {
+  if (reduce) return; stop();
+  const bar = $("step-" + cur).querySelector(".bar"), t0 = performance.now(), dur = 4200;
+  (function frame(t) {
+    const p = Math.min(1, (t - t0) / dur); bar.style.width = (p * 100) + "%";
+    if (p < 1) { timer = requestAnimationFrame(frame); return; }
+    select((cur + 1) % STEPS.length); play();
+  })(t0);
+}
+function stop() { if (timer) cancelAnimationFrame(timer); timer = null; document.querySelectorAll(".step .bar").forEach(b => b.style.width = "0"); }
+
+/* ---- copy buttons ---- */
+document.querySelectorAll(".copy").forEach(btn => btn.addEventListener("click", async () => {
+  const text = $(btn.dataset.target).innerText;
+  try { await navigator.clipboard.writeText(text); btn.textContent = "Copied"; }
+  catch (e) { const r = document.createRange(); r.selectNodeContents($(btn.dataset.target)); const s = getSelection(); s.removeAllRanges(); s.addRange(r); btn.textContent = "Press Ctrl+C"; }
+  setTimeout(() => btn.textContent = "Copy", 1800);
+}));
+
+/* ---- reveal on scroll, start the pipeline when visible ---- */
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if (!e.isIntersecting) return; e.target.classList.add("in");
+  if (e.target.id === "how" && !started) { started = true; play(); }
+}), { threshold: .15 });
+document.querySelectorAll(".reveal").forEach(el => io.observe(el));
+
+renderPlayground(); select(0);
+</script>
+</body>
+</html>

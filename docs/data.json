@@ -1,0 +1,430 @@
+{
+ "base": [
+  {
+   "month": "2022-05-01",
+   "completed_trips": 5,
+   "gross_fare_usd": 77.76,
+   "avg_fare_usd": 15.55,
+   "surged_pct": 20.0,
+   "airport_pct": 20.0
+  },
+  {
+   "month": "2022-06-01",
+   "completed_trips": 20,
+   "gross_fare_usd": 345.68,
+   "avg_fare_usd": 17.28,
+   "surged_pct": 15.0,
+   "airport_pct": 5.0
+  },
+  {
+   "month": "2022-07-01",
+   "completed_trips": 53,
+   "gross_fare_usd": 1016.72,
+   "avg_fare_usd": 19.18,
+   "surged_pct": 9.4,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2022-09-01",
+   "completed_trips": 12,
+   "gross_fare_usd": 174.83,
+   "avg_fare_usd": 14.57,
+   "surged_pct": 33.3,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2023-05-01",
+   "completed_trips": 127,
+   "gross_fare_usd": 3302.29,
+   "avg_fare_usd": 26.0,
+   "surged_pct": 9.4,
+   "airport_pct": 0.8
+  },
+  {
+   "month": "2023-06-01",
+   "completed_trips": 212,
+   "gross_fare_usd": 4635.83,
+   "avg_fare_usd": 21.87,
+   "surged_pct": 12.7,
+   "airport_pct": 0.9
+  },
+  {
+   "month": "2023-07-01",
+   "completed_trips": 163,
+   "gross_fare_usd": 3279.53,
+   "avg_fare_usd": 20.12,
+   "surged_pct": 9.2,
+   "airport_pct": 1.2
+  },
+  {
+   "month": "2023-08-01",
+   "completed_trips": 9,
+   "gross_fare_usd": 218.86,
+   "avg_fare_usd": 24.32,
+   "surged_pct": 33.3,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2023-09-01",
+   "completed_trips": 107,
+   "gross_fare_usd": 1929.57,
+   "avg_fare_usd": 18.03,
+   "surged_pct": 7.5,
+   "airport_pct": 3.7
+  },
+  {
+   "month": "2023-10-01",
+   "completed_trips": 266,
+   "gross_fare_usd": 5289.65,
+   "avg_fare_usd": 19.89,
+   "surged_pct": 17.7,
+   "airport_pct": 0.4
+  },
+  {
+   "month": "2023-11-01",
+   "completed_trips": 292,
+   "gross_fare_usd": 5548.04,
+   "avg_fare_usd": 19.0,
+   "surged_pct": 4.8,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2023-12-01",
+   "completed_trips": 189,
+   "gross_fare_usd": 4092.28,
+   "avg_fare_usd": 21.65,
+   "surged_pct": 3.2,
+   "airport_pct": 0.5
+  },
+  {
+   "month": "2024-01-01",
+   "completed_trips": 145,
+   "gross_fare_usd": 2868.21,
+   "avg_fare_usd": 19.78,
+   "surged_pct": 4.1,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2024-02-01",
+   "completed_trips": 124,
+   "gross_fare_usd": 2311.58,
+   "avg_fare_usd": 18.64,
+   "surged_pct": 5.6,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2024-03-01",
+   "completed_trips": 231,
+   "gross_fare_usd": 4688.6,
+   "avg_fare_usd": 20.3,
+   "surged_pct": 3.9,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2024-04-01",
+   "completed_trips": 245,
+   "gross_fare_usd": 4721.06,
+   "avg_fare_usd": 19.27,
+   "surged_pct": 4.1,
+   "airport_pct": 0.8
+  },
+  {
+   "month": "2024-05-01",
+   "completed_trips": 266,
+   "gross_fare_usd": 5157.16,
+   "avg_fare_usd": 19.39,
+   "surged_pct": 6.0,
+   "airport_pct": 0.4
+  },
+  {
+   "month": "2024-06-01",
+   "completed_trips": 236,
+   "gross_fare_usd": 5228.57,
+   "avg_fare_usd": 22.15,
+   "surged_pct": 4.2,
+   "airport_pct": 0.8
+  },
+  {
+   "month": "2024-07-01",
+   "completed_trips": 212,
+   "gross_fare_usd": 4147.67,
+   "avg_fare_usd": 19.66,
+   "surged_pct": 4.7,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2024-08-01",
+   "completed_trips": 149,
+   "gross_fare_usd": 3042.43,
+   "avg_fare_usd": 20.7,
+   "surged_pct": 2.7,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2024-09-01",
+   "completed_trips": 180,
+   "gross_fare_usd": 3833.73,
+   "avg_fare_usd": 21.3,
+   "surged_pct": 2.2,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2024-10-01",
+   "completed_trips": 41,
+   "gross_fare_usd": 985.3,
+   "avg_fare_usd": 24.03,
+   "surged_pct": 7.3,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2024-12-01",
+   "completed_trips": 2,
+   "gross_fare_usd": 82.17,
+   "avg_fare_usd": 41.09,
+   "surged_pct": 0.0,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2025-01-01",
+   "completed_trips": 5,
+   "gross_fare_usd": 211.79,
+   "avg_fare_usd": 42.36,
+   "surged_pct": 80.0,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2025-03-01",
+   "completed_trips": 29,
+   "gross_fare_usd": 484.0,
+   "avg_fare_usd": 16.69,
+   "surged_pct": 0.0,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2025-04-01",
+   "completed_trips": 58,
+   "gross_fare_usd": 1119.79,
+   "avg_fare_usd": 19.31,
+   "surged_pct": 0.0,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2025-05-01",
+   "completed_trips": 73,
+   "gross_fare_usd": 1975.11,
+   "avg_fare_usd": 27.06,
+   "surged_pct": 4.1,
+   "airport_pct": 0.0
+  }
+ ],
+ "head": [
+  {
+   "month": "2022-05-01",
+   "completed_trips": 5,
+   "gross_fare_usd": 77.76,
+   "avg_fare_usd": 15.55,
+   "surged_pct": 20.0,
+   "airport_pct": 20.0
+  },
+  {
+   "month": "2022-06-01",
+   "completed_trips": 20,
+   "gross_fare_usd": 345.68,
+   "avg_fare_usd": 17.28,
+   "surged_pct": 15.0,
+   "airport_pct": 5.0
+  },
+  {
+   "month": "2022-07-01",
+   "completed_trips": 53,
+   "gross_fare_usd": 1016.72,
+   "avg_fare_usd": 19.18,
+   "surged_pct": 9.4,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2022-09-01",
+   "completed_trips": 12,
+   "gross_fare_usd": 174.83,
+   "avg_fare_usd": 14.57,
+   "surged_pct": 33.3,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2023-05-01",
+   "completed_trips": 127,
+   "gross_fare_usd": 3302.29,
+   "avg_fare_usd": 26.0,
+   "surged_pct": 9.4,
+   "airport_pct": 0.8
+  },
+  {
+   "month": "2023-06-01",
+   "completed_trips": 212,
+   "gross_fare_usd": 4635.83,
+   "avg_fare_usd": 21.87,
+   "surged_pct": 12.7,
+   "airport_pct": 0.9
+  },
+  {
+   "month": "2023-07-01",
+   "completed_trips": 163,
+   "gross_fare_usd": 3279.53,
+   "avg_fare_usd": 20.12,
+   "surged_pct": 9.2,
+   "airport_pct": 1.2
+  },
+  {
+   "month": "2023-08-01",
+   "completed_trips": 9,
+   "gross_fare_usd": 218.86,
+   "avg_fare_usd": 24.32,
+   "surged_pct": 33.3,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2023-09-01",
+   "completed_trips": 107,
+   "gross_fare_usd": 1929.57,
+   "avg_fare_usd": 18.03,
+   "surged_pct": 7.5,
+   "airport_pct": 3.7
+  },
+  {
+   "month": "2023-10-01",
+   "completed_trips": 259,
+   "gross_fare_usd": 5120.21,
+   "avg_fare_usd": 19.77,
+   "surged_pct": 17.4,
+   "airport_pct": 0.4
+  },
+  {
+   "month": "2023-11-01",
+   "completed_trips": 295,
+   "gross_fare_usd": 5606.44,
+   "avg_fare_usd": 19.0,
+   "surged_pct": 5.4,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2023-12-01",
+   "completed_trips": 188,
+   "gross_fare_usd": 4075.97,
+   "avg_fare_usd": 21.68,
+   "surged_pct": 2.7,
+   "airport_pct": 0.5
+  },
+  {
+   "month": "2024-01-01",
+   "completed_trips": 150,
+   "gross_fare_usd": 2995.56,
+   "avg_fare_usd": 19.97,
+   "surged_pct": 4.7,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2024-02-01",
+   "completed_trips": 124,
+   "gross_fare_usd": 2311.58,
+   "avg_fare_usd": 18.64,
+   "surged_pct": 5.6,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2024-03-01",
+   "completed_trips": 225,
+   "gross_fare_usd": 4583.53,
+   "avg_fare_usd": 20.37,
+   "surged_pct": 4.0,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2024-04-01",
+   "completed_trips": 251,
+   "gross_fare_usd": 4826.13,
+   "avg_fare_usd": 19.23,
+   "surged_pct": 4.0,
+   "airport_pct": 0.8
+  },
+  {
+   "month": "2024-05-01",
+   "completed_trips": 262,
+   "gross_fare_usd": 5058.48,
+   "avg_fare_usd": 19.31,
+   "surged_pct": 6.1,
+   "airport_pct": 0.4
+  },
+  {
+   "month": "2024-06-01",
+   "completed_trips": 236,
+   "gross_fare_usd": 5271.15,
+   "avg_fare_usd": 22.34,
+   "surged_pct": 4.2,
+   "airport_pct": 0.8
+  },
+  {
+   "month": "2024-07-01",
+   "completed_trips": 212,
+   "gross_fare_usd": 4149.01,
+   "avg_fare_usd": 19.66,
+   "surged_pct": 4.7,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2024-08-01",
+   "completed_trips": 148,
+   "gross_fare_usd": 3004.15,
+   "avg_fare_usd": 20.58,
+   "surged_pct": 2.7,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2024-09-01",
+   "completed_trips": 182,
+   "gross_fare_usd": 3869.15,
+   "avg_fare_usd": 21.26,
+   "surged_pct": 2.2,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2024-10-01",
+   "completed_trips": 44,
+   "gross_fare_usd": 1042.92,
+   "avg_fare_usd": 23.7,
+   "surged_pct": 6.8,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2025-01-01",
+   "completed_trips": 7,
+   "gross_fare_usd": 293.96,
+   "avg_fare_usd": 41.99,
+   "surged_pct": 57.1,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2025-03-01",
+   "completed_trips": 29,
+   "gross_fare_usd": 484.0,
+   "avg_fare_usd": 16.69,
+   "surged_pct": 0.0,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2025-04-01",
+   "completed_trips": 58,
+   "gross_fare_usd": 1119.79,
+   "avg_fare_usd": 19.31,
+   "surged_pct": 0.0,
+   "airport_pct": 0.0
+  },
+  {
+   "month": "2025-05-01",
+   "completed_trips": 73,
+   "gross_fare_usd": 1975.11,
+   "avg_fare_usd": 27.06,
+   "surged_pct": 4.1,
+   "airport_pct": 0.0
+  }
+ ]
+}
