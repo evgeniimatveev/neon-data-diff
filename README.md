@@ -42,10 +42,11 @@ The tool leaves its own track record here, rebuilt daily from real runs (not typ
 | [#12](https://github.com/evgeniimatveev/uber-driver-analytics/pull/12) Demo: UTC date + neon-data-diff PR check | ⚠️ 1 of 2 table(s) changed | `mart_monthly_trips` 27 → 26 (+0 −1 ~13) | 51.9% | closed · 2026-11-23 |
 
 #### Daily flow (drift watch)
-Last 2 daily run(s) with the drift check: **2 without a flagged rewrite**, 0 flagged or failed. Drift issues opened so far: **0**.
+Last 3 daily run(s) with the drift check: **3 without a flagged rewrite**, 0 flagged or failed. Drift issues opened so far: **0**.
 
 | Date | Run | Drift check |
 |---|---|---|
+| 2026-11-26 | [schedule](https://github.com/evgeniimatveev/job-market-pulse/actions/runs/45906467140) | ✅ passed (growth only, or skipped on a first run) |
 | 2026-11-25 | [schedule](https://github.com/evgeniimatveev/job-market-pulse/actions/runs/45716836028) | ✅ passed (growth only, or skipped on a first run) |
 | 2026-11-24 | [schedule](https://github.com/evgeniimatveev/job-market-pulse/actions/runs/45508963710) | ✅ passed (growth only, or skipped on a first run) |
 
